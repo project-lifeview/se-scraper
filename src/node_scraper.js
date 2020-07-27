@@ -201,19 +201,14 @@ class ScrapeManager {
     async start() {
 
         if (this.config.custom_func) {
-            if (fs.existsSync(this.config.custom_func)) {
-                try {
-                    const PluggableClass = require(this.config.custom_func);
-                    this.pluggable = new PluggableClass({
-                        config: this.config,
-                        context: this.context
-                    });
-                } catch (exception) {
-                    console.error(exception);
-                    return false;
-                }
-            } else {
-                console.error(`File "${this.config.custom_func}" does not exist!`);
+            try {
+                const PluggableClass = this.config.custom_func;
+                this.pluggable = new PluggableClass({
+                    config: this.config,
+                    context: this.context
+                });
+            } catch (exception) {
+                console.error(exception);
                 return false;
             }
         }
@@ -221,7 +216,7 @@ class ScrapeManager {
         const chrome_flags = _.clone(this.config.chrome_flags);
 
         if (this.pluggable && this.pluggable.start_browser) {
-            launch_args.config = this.config;
+            // launch_args.config = this.config;
             this.browser = await this.pluggable.start_browser({
                 config: this.config,
             });
