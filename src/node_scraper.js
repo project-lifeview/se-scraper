@@ -7,6 +7,7 @@ const { createLogger, format, transports } = require('winston');
 const { combine, timestamp, printf } = format;
 const debug = require('debug')('se-scraper:ScrapeManager');
 const { Cluster } = require('puppeteer-cluster');
+const chromeLambda = require('chrome-aws-lambda');
 
 const UserAgent = require('user-agents');
 const google = require('./modules/google.js');
@@ -101,6 +102,7 @@ class ScrapeManager {
             // specify flags passed to chrome here
             // About our defaults values https://peter.sh/experiments/chromium-command-line-switches/
             chrome_flags: [
+                ...chromeLambda.args,
                 '--disable-infobars',
                 '--window-position=0,0',
                 '--ignore-certifcate-errors',
@@ -159,7 +161,7 @@ class ScrapeManager {
                 monitor: false,
                 concurrency: Cluster.CONCURRENCY_BROWSER,
                 maxConcurrency: 1,
-            }
+            },
         });
 
         this.logger = this.config.logger;
@@ -275,12 +277,12 @@ class ScrapeManager {
             });
 
             debug('perBrowserOptions=%O', perBrowserOptions)
-
             this.cluster = await Cluster.launch({
                 monitor: this.config.puppeteer_cluster_config.monitor,
                 timeout: this.config.puppeteer_cluster_config.timeout, // max timeout set to 30 minutes
                 concurrency: CustomConcurrencyImpl,
                 maxConcurrency: this.numClusters,
+                puppeteer: await chromeLambda.puppeteer,
                 puppeteerOptions: {
                     perBrowserOptions: perBrowserOptions
                 }
