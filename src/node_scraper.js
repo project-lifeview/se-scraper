@@ -102,7 +102,6 @@ class ScrapeManager {
             // specify flags passed to chrome here
             // About our defaults values https://peter.sh/experiments/chromium-command-line-switches/
             chrome_flags: [
-                ...chromeLambda.args,
                 '--disable-infobars',
                 '--window-position=0,0',
                 '--ignore-certifcate-errors',
@@ -233,6 +232,7 @@ class ScrapeManager {
             // use puppeteer-cluster for scraping
 
             let proxies;
+            let perBrowserOptions = [];
             // if we have at least one proxy, always use CONCURRENCY_BROWSER
             // and set maxConcurrency to this.config.proxies.length + 1
             // else use whatever this.configuration was passed
@@ -252,6 +252,13 @@ class ScrapeManager {
                 if (this.config.use_proxies_only === false) {
                     proxies.unshift(null);
                 }
+                for (var proxy of proxies) {
+                    perBrowserOptions.push({
+                        headless: this.config.headless,
+                        ignoreHTTPSErrors: true,
+                        args: chrome_flags.concat(`--proxy-server=${proxy}`)
+                    });
+                }
 
             } else {
                 this.numClusters = this.config.puppeteer_cluster_config.maxConcurrency;
@@ -261,32 +268,36 @@ class ScrapeManager {
             this.logger.info(`Using ${this.numClusters} clusters.`);
 
             // Give the per browser options
-            const perBrowserOptions = _.map(proxies, (proxy) => {
-                const userAgent = (this.config.random_user_agent) ? (new UserAgent({deviceCategory: 'desktop'})).toString() : this.config.user_agent;
-                let args = chrome_flags.concat([`--user-agent=${userAgent}`]);
+            // Give the per browser options each a random user agent when random user agent is set
+            while (perBrowserOptions.length < this.numClusters) {
+                const userAgent = new UserAgent();
+                perBrowserOptions.push({
+                headless: this.config.headless,
+                ignoreHTTPSErrors: true,
+                args: chrome_flags
+                    .slice()
+                    .concat(`--user-agent=${userAgent.toString()}`)
+                });
+            }
 
-                if (proxy) {
-                    args = args.concat([`--proxy-server=${proxy}`]);
-                }
-
-                return {
-                    headless: this.config.headless,
-                    ignoreHTTPSErrors: true,
-                    args
-                };
-            });
+            const launch_args = {
+                args: [...chromeLambda.args, ...chrome_flags],
+                headless: this.config.headless,
+                ignoreHTTPSErrors: true,
+                executablePath: await chromeLambda.executablePath
+            };
 
             debug('perBrowserOptions=%O', perBrowserOptions)
-            this.cluster = await Cluster.launch({
+            const cluster_options = {
                 monitor: this.config.puppeteer_cluster_config.monitor,
                 timeout: this.config.puppeteer_cluster_config.timeout, // max timeout set to 30 minutes
-                concurrency: CustomConcurrencyImpl,
-                maxConcurrency: this.numClusters,
+                concurrency: this.config.puppeteer_cluster_config.concurrency,
+                maxConcurrency: this.config.puppeteer_cluster_config.maxConcurrency,
+                puppeteerOptions: launch_args,
+                perBrowserOptions: perBrowserOptions,
                 puppeteer: await chromeLambda.puppeteer,
-                puppeteerOptions: {
-                    perBrowserOptions: perBrowserOptions
-                }
-            });
+            };
+            this.cluster = await Cluster.launch(cluster_options);
         }
     }
 
