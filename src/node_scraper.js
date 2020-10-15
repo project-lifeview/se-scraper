@@ -149,7 +149,7 @@ class ScrapeManager {
             // whether to use proxies only
             // when this is set to true, se-scraper will not use
             // your default IP address
-            use_proxies_only: false,
+            use_proxies_only: true,
             // check if headless chrome escapes common detection techniques
             // this is a quick test and should be used for debugging
             test_evasion: false,
@@ -233,55 +233,56 @@ class ScrapeManager {
 
             let proxies;
             let perBrowserOptions = [];
+            this.numClusters = 1;
             // if we have at least one proxy, always use CONCURRENCY_BROWSER
             // and set maxConcurrency to this.config.proxies.length + 1
             // else use whatever this.configuration was passed
-            if (this.config.proxies && this.config.proxies.length > 0) {
+            // if (this.config.proxies && this.config.proxies.length > 0) {
 
-                // because we use real browsers, we ran out of memory on normal laptops
-                // when using more than maybe 5 or 6 browsers.
-                // therefore hardcode a limit here
-                // TODO not sure this what we want
-                this.numClusters = Math.min(
-                    this.config.proxies.length + (this.config.use_proxies_only ? 0 : 1),
-                    MAX_ALLOWED_BROWSERS
-                );
-                proxies = _.clone(this.config.proxies);
+            //     // because we use real browsers, we ran out of memory on normal laptops
+            //     // when using more than maybe 5 or 6 browsers.
+            //     // therefore hardcode a limit here
+            //     // TODO not sure this what we want
+            //     this.numClusters = Math.min(
+            //         this.config.proxies.length + (this.config.use_proxies_only ? 0 : 1),
+            //         MAX_ALLOWED_BROWSERS
+            //     );
+            //     proxies = _.clone(this.config.proxies);
 
-                // Insert a first config without proxy if use_proxy_only is false
-                if (this.config.use_proxies_only === false) {
-                    proxies.unshift(null);
-                }
-                for (var proxy of proxies) {
-                    perBrowserOptions.push({
-                        headless: this.config.headless,
-                        ignoreHTTPSErrors: true,
-                        args: chrome_flags.concat(`--proxy-server=${proxy}`)
-                    });
-                }
+            //     // Insert a first config without proxy if use_proxy_only is false
+            //     if (this.config.use_proxies_only === false) {
+            //         proxies.unshift(null);
+            //     }
+            //     for (var proxy of proxies) {
+            //         perBrowserOptions.push({
+            //             headless: this.config.headless,
+            //             ignoreHTTPSErrors: true,
+            //             args: chrome_flags.concat(`--proxy-server=${proxy}`)
+            //         });
+            //     }
 
-            } else {
-                this.numClusters = this.config.puppeteer_cluster_config.maxConcurrency;
-                proxies = _.times(this.numClusters, null);
-            }
+            // } else {
+            //     this.numClusters = this.config.puppeteer_cluster_config.maxConcurrency;
+            //     proxies = _.times(this.numClusters, null);
+            // }
 
-            this.logger.info(`Using ${this.numClusters} clusters.`);
+            // this.logger.info(`Using ${this.numClusters} clusters.`);
 
             // Give the per browser options
             // Give the per browser options each a random user agent when random user agent is set
-            while (perBrowserOptions.length < this.numClusters) {
-                const userAgent = new UserAgent();
-                perBrowserOptions.push({
-                headless: this.config.headless,
-                ignoreHTTPSErrors: true,
-                args: chrome_flags
-                    .slice()
-                    .concat(`--user-agent=${userAgent.toString()}`)
-                });
-            }
+            // while (perBrowserOptions.length < this.numClusters) {
+            //     const userAgent = new UserAgent();
+            //     perBrowserOptions.push({
+            //     headless: this.config.headless,
+            //     ignoreHTTPSErrors: true,
+            //     args: chrome_flags
+            //         .slice()
+            //         .concat(`--user-agent=${userAgent.toString()}`)
+            //     });
+            // }
 
             const launch_args = {
-                args: [...chromeLambda.args, ...chrome_flags],
+                args: [...chromeLambda.args, ...chrome_flags, `--proxy-server=${this.config.proxies[0]}`],
                 headless: this.config.headless,
                 ignoreHTTPSErrors: true,
                 executablePath: await chromeLambda.executablePath
@@ -294,7 +295,6 @@ class ScrapeManager {
                 concurrency: this.config.puppeteer_cluster_config.concurrency,
                 maxConcurrency: this.config.puppeteer_cluster_config.maxConcurrency,
                 puppeteerOptions: launch_args,
-                perBrowserOptions: perBrowserOptions,
                 puppeteer: await chromeLambda.puppeteer,
             };
             this.cluster = await Cluster.launch(cluster_options);
@@ -344,6 +344,7 @@ class ScrapeManager {
             for (var n = 0; n < this.numClusters; n++) {
                 chunks.push([]);
             }
+            console.log('keywors', this.config.keywords);
             for (var k = 0; k < this.config.keywords.length; k++) {
                 chunks[k % this.numClusters].push(this.config.keywords[k]);
             }
