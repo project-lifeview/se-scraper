@@ -31,7 +31,7 @@ module.exports = class Scraper {
         this.proxy = config.proxy;
         this.keywords = config.keywords;
 
-        this.STANDARD_TIMEOUT = 40000;
+        this.STANDARD_TIMEOUT = 30000;
         this.SOLVE_CAPTCHA_TIME = 45000;
 
         this.results = {};
