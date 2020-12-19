@@ -18,7 +18,7 @@ let browser_config = {
         // which search engine to scrape
         search_engine: 'bing',
         // an array of keywords to scrape
-        keywords: ['cloud service'],
+        keywords: ['site:harvard.edu "john Halamka"'],
         // the number of pages to scrape for each keyword
         num_pages: 1,
 
@@ -38,7 +38,7 @@ let browser_config = {
         output_file: '',
         // whether to prevent images, css, fonts from being loaded
         // will speed up scraping a great deal
-        block_assets: false,
+        block_assets: true,
         // check if headless chrome escapes common detection techniques
         // this is a quick test and should be used for debugging
         test_evasion: false,
